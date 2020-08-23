@@ -1,0 +1,6 @@
+Flask==1.1.2
+tensorflow
+flask-cors
+uuid
+opencv-python
+Pillow

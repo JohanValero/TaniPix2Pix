@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Canvas tutorial</title>
+    <style>
+        canvas {
+            width: 512px;
+            height: 512px;
+            border: red 1px solid;
+            border-color: #000000;
+            background-color: #ffffff;
+        }
+
+        img {
+            width: 512px;
+            height: 512px;
+            border: 1px solid black;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="pizarra"></canvas>
+    <img id="div_img" />
+    <br/>
+    <button onclick="sendCanvas()">PREDICT</button>
+    <button onclick="clearCanvas()">RESET CANVAS</button>
+</body>
+<script>
+    const URL_SERVER = window.location.href
+    const URL_POST   = URL_SERVER + 'RecibirImagen'
+
+    function b64ToUint8Array(b64Image) {
+        let img = atob(b64Image.split(',')[1])
+        let img_buffer = []
+        let i = 0
+        while (i < img.length) {
+            img_buffer.push(img.charCodeAt(i));
+            i++;
+        }
+        return new Uint8Array(img_buffer);
+    }
+
+    function sendCanvas(){
+        let canvas   = document.getElementById("pizarra")
+        let b64Image = canvas.toDataURL()
+        let ajax     = new XMLHttpRequest()
+        let formData = new FormData()
+
+        let u86Image = b64ToUint8Array(b64Image)
+        formData.append("Image", new Blob([ u86Image ], {type: "image/jpeg"}))
+        
+        ajax.open("POST", URL_POST, true)
+        ajax.responseType = "blob"
+        ajax.onload = (event) => {
+            //btoa
+            let blob = ajax.response
+            
+            let urlCreator = window.URL || window.webkitURL;
+            let imageUrl = urlCreator.createObjectURL(blob);
+            
+            document.getElementById("div_img").src = imageUrl
+        }
+        ajax.send(formData)
+    }
+</script>
+
+<script>
+    //======================================================================
+    // VARIABLES
+    //======================================================================
+    let miCanvas = document.querySelector('#pizarra');
+    let lineas = [];
+    let correccionX = 0;
+    let correccionY = 0;
+    let pintarLinea = false;
+
+    let posicion = miCanvas.getBoundingClientRect()
+    correccionX = posicion.x;
+    correccionY = posicion.y;
+
+    miCanvas.width = 512;
+    miCanvas.height = 512;
+
+    //======================================================================
+    // FUNCIONES
+    //======================================================================
+
+    function clearCanvas() {
+        let canvas  = document.getElementById('pizarra')
+        let context = canvas.getContext('2d')
+        
+        context.clearRect(0, 0, canvas.width, canvas.height)
+        context.beginPath()
+        let w = canvas.width
+        canvas.width = 1
+        canvas.width = w
+
+        lineas = []
+        correccionX = 0;
+        correccionY = 0;
+        pintarLinea = false;
+    }
+
+    /**
+     * Funcion que empieza a dibujar la linea
+     */
+    function empezarDibujo() {
+        pintarLinea = true;
+        lineas.push([]);
+    };
+
+    /**
+     * Funcion dibuja la linea
+     */
+    function dibujarLinea(event) {
+        event.preventDefault();
+        if (pintarLinea) {
+            let ctx = miCanvas.getContext('2d')
+            // Estilos de linea
+            ctx.lineJoin = ctx.lineCap = 'round';
+            ctx.lineWidth = 1;
+            
+            // Color de la linea
+            ctx.strokeStyle = '#000000';
+            
+            // Marca el nuevo punto
+            let nuevaPosicionX = 0;
+            let nuevaPosicionY = 0;
+            if (event.changedTouches == undefined) {
+                // Versión ratón
+                nuevaPosicionX = event.layerX;
+                nuevaPosicionY = event.layerY;
+            } else {
+                // Versión touch, pantalla tactil
+                nuevaPosicionX = event.changedTouches[0].pageX - correccionX;
+                nuevaPosicionY = event.changedTouches[0].pageY - correccionY;
+            }
+            // Guarda la linea
+            lineas[lineas.length - 1].push({
+                x: nuevaPosicionX,
+                y: nuevaPosicionY
+            });
+            // Redibuja todas las lineas guardadas
+            ctx.beginPath();
+            lineas.forEach(function (segmento) {
+                ctx.moveTo(segmento[0].x, segmento[0].y);
+                segmento.forEach(function (punto, index) {
+                    ctx.lineTo(punto.x, punto.y);
+                });
+            });
+            ctx.stroke();
+        }
+    }
+
+    /**
+     * Funcion que deja de dibujar la linea
+     */
+    function pararDibujar() {
+        pintarLinea = false;
+    }
+
+    //======================================================================
+    // EVENTOS
+    //======================================================================
+
+    // Eventos raton
+    miCanvas.addEventListener('mousedown', empezarDibujo, false);
+    miCanvas.addEventListener('mousemove', dibujarLinea, false);
+    miCanvas.addEventListener('mouseup', pararDibujar, false);
+
+    // Eventos pantallas táctiles
+    miCanvas.addEventListener('touchstart', empezarDibujo, false);
+    miCanvas.addEventListener('touchmove', dibujarLinea, false);
+
+</script>
+
+</html>
